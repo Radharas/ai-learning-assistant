@@ -36,13 +36,6 @@
             <artifactId>spring-boot-starter-web</artifactId>
         </dependency>
 
-        <!-- Spring AI (OpenAI) -->
-        <dependency>
-            <groupId>org.springframework.ai</groupId>
-            <artifactId>spring-ai-openai-spring-boot-starter</artifactId>
-            <version>1.0.0</version>
-        </dependency>
-
         <!-- Lombok (Optional but recommended) -->
         <dependency>
             <groupId>org.projectlombok</groupId>
