@@ -1,222 +1,7 @@
-diff --git a/src/main/java/com/ai/assistant/controller/LearningController.java b/src/main/java/com/ai/assistant/controller/LearningController.java
-new file mode 100644
---- /dev/null
-+++ b/src/main/java/com/ai/assistant/controller/LearningController.java
-@@
-+package com.ai.assistant.controller;
-+
-+import com.ai.assistant.model.*;
-+import com.ai.assistant.service.LearningService;
-+import org.springframework.beans.factory.annotation.Autowired;
-+import org.springframework.http.ResponseEntity;
-+import org.springframework.web.bind.annotation.*;
-+
-+import java.util.List;
-+
-+@RestController
-+@RequestMapping("/api/learning")
-+public class LearningController {
-+
-+    @Autowired
-+    private LearningService service;
-+
-+    @PostMapping("/ask")
-+    public ResponseEntity<String> ask(@RequestBody QuestionRequest req) {
-+        return ResponseEntity.ok(service.processQuestion(req.getQuestion()));
-+    }
-+
-+    @PostMapping("/assess")
-+    public ResponseEntity<Integer> assess(@RequestBody AnswerRequest req) {
-+        return ResponseEntity.ok(service.evaluate(req.getAnswer()));
-+    }
-+
-+    @GetMapping("/path/{userId}")
-+    public ResponseEntity<List<String>> path(@PathVariable String userId) {
-+        return ResponseEntity.ok(service.getLearningPath(userId));
-+    }
-+}
-diff --git a/src/main/java/com/ai/assistant/service/LearningService.java b/src/main/java/com/ai/assistant/service/LearningService.java
-new file mode 100644
---- /dev/null
-+++ b/src/main/java/com/ai/assistant/service/LearningService.java
-@@
-+package com.ai.assistant.service;
-+
-+import com.ai.assistant.agent.GapDetectorAgent;
-+import com.ai.assistant.agent.TutorAgent;
-+import com.ai.assistant.rag.RagService;
-+import lombok.extern.slf4j.Slf4j;
-+import org.springframework.beans.factory.annotation.Autowired;
-+import org.springframework.stereotype.Service;
-+
-+import java.util.Arrays;
-+import java.util.List;
-+
-+@Service
-+@Slf4j
-+public class LearningService {
-+
-+    @Autowired
-+    private TutorAgent tutorAgent;
-+
-+    @Autowired
-+    private GapDetectorAgent gapAgent;
-+
-+    @Autowired
-+    private RagService ragService;
-+
-+    public String processQuestion(String question) {
-+        log.info("Processing question: {}", question);
-+        String context = ragService.answerWithRAG(question);
-+        return tutorAgent.execute(context);
-+    }
-+
-+    public int evaluate(String answer) {
-+        String response = tutorAgent.execute("Score out of 10:\n" + answer);
-+        return Integer.parseInt(response.replaceAll("\\D", ""));
-+    }
-+
-+    public List<String> getLearningPath(String userId) {
-+        String gaps = gapAgent.execute("User history: " + userId);
-+        return Arrays.asList(gaps.split("\\n"));
-+    }
-+}
-diff --git a/src/main/java/com/ai/assistant/agent/Agent.java b/src/main/java/com/ai/assistant/agent/Agent.java
-new file mode 100644
---- /dev/null
-+++ b/src/main/java/com/ai/assistant/agent/Agent.java
-@@
-+package com.ai.assistant.agent;
-+
-+public interface Agent {
-+    String execute(String input);
-+}
-diff --git a/src/main/java/com/ai/assistant/agent/TutorAgent.java b/src/main/java/com/ai/assistant/agent/TutorAgent.java
-new file mode 100644
---- /dev/null
-+++ b/src/main/java/com/ai/assistant/agent/TutorAgent.java
-@@
-+package com.ai.assistant.agent;
-+
-+import com.ai.assistant.config.LlmClient;
-+import org.springframework.beans.factory.annotation.Autowired;
-+import org.springframework.stereotype.Component;
-+
-+@Component
-+public class TutorAgent implements Agent {
-+
-+    @Autowired
-+    private LlmClient client;
-+
-+    @Override
-+    public String execute(String input) {
-+        return client.generate("Explain clearly:\n" + input);
-+    }
-+}
-diff --git a/src/main/java/com/ai/assistant/agent/GapDetectorAgent.java b/src/main/java/com/ai/assistant/agent/GapDetectorAgent.java
-new file mode 100644
---- /dev/null
-+++ b/src/main/java/com/ai/assistant/agent/GapDetectorAgent.java
-@@
-+package com.ai.assistant.agent;
-+
-+import com.ai.assistant.config.LlmClient;
-+import org.springframework.beans.factory.annotation.Autowired;
-+import org.springframework.stereotype.Component;
-+
-+@Component
-+public class GapDetectorAgent implements Agent {
-+
-+    @Autowired
-+    private LlmClient client;
-+
-+    @Override
-+    public String execute(String input) {
-+        return client.generate("Identify knowledge gaps:\n" + input);
-+    }
-+}
-diff --git a/src/main/java/com/ai/assistant/rag/RagService.java b/src/main/java/com/ai/assistant/rag/RagService.java
-new file mode 100644
---- /dev/null
-+++ b/src/main/java/com/ai/assistant/rag/RagService.java
-@@
-+package com.ai.assistant.rag;
-+
-+import org.springframework.stereotype.Service;
-+
-+@Service
-+public class RagService {
-+
-+    public String retrieveContext(String question) {
-+        return "Java basics, OOP concepts, polymorphism.";
-+    }
-+
-+    public String answerWithRAG(String question) {
-+        return "Context:\n" + retrieveContext(question) + "\nQuestion:\n" + question;
-+    }
-+}
-diff --git a/src/main/java/com/ai/assistant/model/QuestionRequest.java b/src/main/java/com/ai/assistant/model/QuestionRequest.java
-new file mode 100644
---- /dev/null
-+++ b/src/main/java/com/ai/assistant/model/QuestionRequest.java
-@@
-+package com.ai.assistant.model;
-+
-+import lombok.Data;
-+
-+@Data
-+public class QuestionRequest {
-+    private String question;
-+}
-diff --git a/src/main/java/com/ai/assistant/model/AnswerRequest.java b/src/main/java/com/ai/assistant/model/AnswerRequest.java
-new file mode 100644
---- /dev/null
-+++ b/src/main/java/com/ai/assistant/model/AnswerRequest.java
-@@
-+package com.ai.assistant.model;
-+
-+import lombok.Data;
-+
-+@Data
-+public class AnswerRequest {
-+    private String answer;
-+}
-diff --git a/src/main/java/com/ai/assistant/config/LlmClient.java b/src/main/java/com/ai/assistant/config/LlmClient.java
-new file mode 100644
---- /dev/null
-+++ b/src/main/java/com/ai/assistant/config/LlmClient.java
-@@
-+package com.ai.assistant.config;
-+
-+import org.springframework.stereotype.Component;
-+
-+@Component
-+public class LlmClient {
-+
-+    public String generate(String prompt) {
-+        return "AI Response: " + prompt;
-+    }
-+}
-diff --git a/src/main/resources/application.yml b/src/main/resources/application.yml
-new file mode 100644
---- /dev/null
-+++ b/src/main/resources/application.yml
-@@
-+server:
-+  port: 8080
-+
-+spring:
-+  datasource:
-+    url: jdbc:postgresql://localhost:5432/ai_learning
-+    username: admin
-+    password: admin
-+
-+  jpa:
-+    hibernate:
-+      ddl-auto: update
 diff --git a/README.md b/README.md
-index e69de29..abc1234 100644
---- a/README.md
+new file mode 100644
+index 0000000..1111111
+--- /dev/null
 +++ b/README.md
 @@
 +# AI Learning Assistant 🚀
@@ -233,12 +18,66 @@ index e69de29..abc1234 100644
 +```
 +
 +## APIs
-+
-+### Ask
-+POST /api/learning/ask
-+
-+### Assess
-+POST /api/learning/assess
-+
-+### Learning Path
++POST /api/learning/ask  
++POST /api/learning/assess  
 +GET /api/learning/path/{userId}
+diff --git a/src/main/java/com/ai/assistant/agent/Agent.java b/src/main/java/com/ai/assistant/agent/Agent.java
+new file mode 100644
+index 0000000..1111111
+--- /dev/null
++++ b/src/main/java/com/ai/assistant/agent/Agent.java
+@@
++package com.ai.assistant.agent;
++
++public interface Agent {
++    String execute(String input);
++}
+diff --git a/src/main/java/com/ai/assistant/config/LlmClient.java b/src/main/java/com/ai/assistant/config/LlmClient.java
+new file mode 100644
+index 0000000..1111111
+--- /dev/null
++++ b/src/main/java/com/ai/assistant/config/LlmClient.java
+@@
++package com.ai.assistant.config;
++
++import org.springframework.stereotype.Component;
++
++@Component
++public class LlmClient {
++
++    public String generate(String prompt) {
++        return "AI Response: " + prompt;
++    }
++}
+diff --git a/src/main/java/com/ai/assistant/service/LearningService.java b/src/main/java/com/ai/assistant/service/LearningService.java
+new file mode 100644
+index 0000000..1111111
+--- /dev/null
++++ b/src/main/java/com/ai/assistant/service/LearningService.java
+@@
++package com.ai.assistant.service;
++
++import com.ai.assistant.agent.Agent;
++import org.springframework.stereotype.Service;
++
++@Service
++public class LearningService {
++
++    private final Agent agent;
++
++    public LearningService(Agent agent) {
++        this.agent = agent;
++    }
++
++    public String processQuestion(String question) {
++        return agent.execute(question);
++    }
++}
+diff --git a/src/main/resources/application.yml b/src/main/resources/application.yml
+new file mode 100644
+index 0000000..1111111
+--- /dev/null
++++ b/src/main/resources/application.yml
+@@
++server:
++  port: 8080
